@@ -1,0 +1,7 @@
+<!doctype html><meta charset="utf-8"><title>Connecting…</title>
+<body style="font:15px system-ui;background:#0b0d17;color:#fff;display:grid;place-items:center;height:100vh;margin:0">Connecting your TasteID…
+<script>
+var p = new URLSearchParams(location.search);
+if (window.opener) { window.opener.postMessage({ type: 'tasteid:callback', code: p.get('code'), state: p.get('state'), error: p.get('error') }, '*'); }
+setTimeout(function () { window.close(); }, 150);
+</script>

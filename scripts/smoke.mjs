@@ -1,0 +1,44 @@
+// End-to-end smoke test: node scripts/smoke.mjs [baseUrl]
+import crypto from 'node:crypto';
+const BASE = (process.argv[2] || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').replace(/\/$/, '');
+let cookie = '', failed = 0;
+const ok = (name, cond, extra = '') => { console.log(`${cond ? 'PASS' : 'FAIL'}  ${name}${extra ? ' — ' + extra : ''}`); if (!cond) failed++; };
+const j = async (path, init = {}) => {
+  const r = await fetch(BASE + path, { ...init, headers: { 'content-type': 'application/json', cookie, ...(init.headers || {}) }, redirect: 'manual' });
+  const sc = r.headers.getSetCookie?.() || []; if (sc.length) cookie = sc.map((c) => c.split(';')[0]).join('; ');
+  let body = null; try { body = await r.json(); } catch {}
+  return { status: r.status, body };
+};
+const s = await j('/api/search?q=Radiohead&type=artist');
+ok('search', s.status === 200 && s.body.results?.length > 0, `${s.body?.results?.length} results`);
+const seeds = (await Promise.all([['Radiohead', 'artist'], ['Inception', 'movie'], ['Nike', 'brand'], ['Dune', 'book']].map(async ([q, t]) => (await j(`/api/search?q=${q}&type=${t}`)).body.results[0]))).filter(Boolean);
+const c = await j('/api/passport/create', { method: 'POST', body: JSON.stringify({ seeds }) });
+ok('create passport', c.status === 200 && c.body.recoveryKey, c.body?.error || '');
+const verifier = crypto.randomBytes(32).toString('base64url');
+const challenge = crypto.createHash('sha256').update(verifier).digest('base64url');
+const redirect = `${BASE}/sdk/callback.html`;
+const consent = await j('/api/oauth/consent', { method: 'POST', body: JSON.stringify({ client_id: 'reelhouse', redirect_uri: redirect, scopes: ['taste:film_tv', 'taste:summary'], state: 'x', code_challenge: challenge }) });
+const code = new URL(consent.body?.redirect || 'http://x').searchParams.get('code');
+ok('authorize → code', !!code);
+const bad = await j('/api/oauth/token', { method: 'POST', body: JSON.stringify({ grant_type: 'authorization_code', code, client_id: 'reelhouse', redirect_uri: redirect, code_verifier: 'wrong' }) });
+ok('wrong PKCE verifier rejected', bad.status === 400);
+const consent2 = await j('/api/oauth/consent', { method: 'POST', body: JSON.stringify({ client_id: 'reelhouse', redirect_uri: redirect, scopes: ['taste:film_tv', 'taste:summary'], state: 'x', code_challenge: challenge }) });
+const code2 = new URL(consent2.body.redirect).searchParams.get('code');
+const tok = await j('/api/oauth/token', { method: 'POST', body: JSON.stringify({ grant_type: 'authorization_code', code: code2, client_id: 'reelhouse', redirect_uri: redirect, code_verifier: verifier }) });
+ok('token exchange', tok.status === 200 && tok.body.access_token);
+const auth = { authorization: `Bearer ${tok.body.access_token}` };
+const t = await j('/api/v1/taste', { headers: auth });
+ok('GET /taste scoped', t.status === 200 && t.body.domains?.film_tv && !t.body.domains?.music, Object.keys(t.body?.domains || {}).join(','));
+const r = await j('/api/v1/recommend', { method: 'POST', headers: auth, body: JSON.stringify({ domain: 'film_tv', take: 5 }) });
+ok('POST /recommend', r.status === 200 && r.body.items?.length > 0 && !!r.body.items[0].why);
+const out = await j('/api/v1/recommend', { method: 'POST', headers: auth, body: JSON.stringify({ domain: 'music' }) });
+ok('out-of-scope domain → 403', out.status === 403);
+const conns = await j('/api/connections');
+const g = conns.body.connections?.find((x) => x.client_id === 'reelhouse');
+ok('connection listed', !!g);
+const rv = await j(`/api/connections?id=${g?.id}`, { method: 'DELETE' });
+ok('revoke', rv.status === 200);
+const after = await j('/api/v1/taste', { headers: auth });
+ok('token dead after revoke (401)', after.status === 401);
+console.log(failed ? `\n${failed} FAILED` : '\nALL PASSED');
+process.exit(failed ? 1 : 0);

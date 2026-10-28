@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { --font-display: 'Fraunces', Georgia, serif; --font-sans: 'DM Sans', system-ui, sans-serif; --font-mono: 'JetBrains Mono', ui-monospace, monospace; --ink: 14 16 28; --paper: 246 241 231; --card: 255 252 245; --line: 14 16 28; --mute: 100 98 110; --accent: 232 62 28; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) { --ink: 244 240 230; --paper: 11 13 23; --card: 20 23 38; --line: 244 240 230; --mute: 150 152 170; --accent: 255 90 54; }
+}
+:root[data-theme='dark'] { --ink: 244 240 230; --paper: 11 13 23; --card: 20 23 38; --line: 244 240 230; --mute: 150 152 170; --accent: 255 90 54; }
+
+html { scroll-behavior: smooth; }
+body { @apply bg-paper text-ink font-sans antialiased; background-image: radial-gradient(rgb(var(--line) / .06) 1px, transparent 1px); background-size: 22px 22px; }
+.border-line\/15, .hairline { border-color: rgb(var(--line) / .15); }
+.btn { @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition active:scale-[.98] disabled:opacity-50; }
+.btn-primary { @apply btn bg-accent text-white hover:brightness-110; }
+.btn-ghost { @apply btn border border-line/25 hover:bg-ink/5; }
+.chip { @apply inline-flex items-center gap-1 rounded-full border border-line/20 px-3 py-1 text-xs; }
+.stamp { @apply font-mono uppercase tracking-[.18em] text-[10px] border-2 border-accent text-accent rounded px-2 py-1 -rotate-3 inline-block; }
+.holo { background: conic-gradient(from 210deg at 70% 20%, #ff5a36, #ffb347, #6ee7ff, #a78bfa, #ff5a36); }
+.card-ink { background: linear-gradient(135deg, #0b0d17 0%, #161a33 60%, #0f1226 100%); color: #f4f0e6; }
+.card-ink::before { content: ''; position: absolute; inset: 0; background: conic-gradient(from 210deg at 85% 0%, rgba(255,90,54,.35), rgba(110,231,255,.25), rgba(167,139,250,.3), rgba(255,90,54,.35)); mix-blend-mode: screen; opacity: .35; border-radius: inherit; pointer-events: none; }
+@keyframes floaty { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-6px) } }
+@keyframes cycle { 0%,30% { opacity: 1 } 36%,100% { opacity: 0 } }
+@keyframes shimmer { 0% { background-position: -200px 0 } 100% { background-position: 200px 0 } }
+.skeleton { background: linear-gradient(90deg, rgb(var(--ink)/.06) 25%, rgb(var(--ink)/.14) 50%, rgb(var(--ink)/.06) 75%); background-size: 400px 100%; animation: shimmer 1.2s infinite; border-radius: .5rem; }
