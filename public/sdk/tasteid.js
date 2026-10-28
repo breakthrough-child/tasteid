@@ -13,8 +13,13 @@
     var verifier = rand(48), state = rand(16), redirect = BASE + '/sdk/callback.html';
     return sha(verifier).then(function (challenge) {
       var q = new URLSearchParams({ client_id: opts.clientId, redirect_uri: redirect, scope: opts.scopes.join(' '), state: state, code_challenge: challenge, code_challenge_method: 'S256' });
-      var w = window.open(BASE + '/authorize?' + q, 'tasteid', 'width=460,height=720');
-      if (!w) throw new Error('Popup blocked');
+      var url = BASE + '/authorize?' + q;
+      var w = window.open(url, 'tasteid', 'width=460,height=720');
+      if (!w) { // popup blocked: full-page redirect fallback; callback.html returns here with the code in the URL fragment
+        var q2 = new URLSearchParams(q); q2.set('state', state + '.' + btoa(location.href.split('#')[0]).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''));
+        try { sessionStorage.setItem('tid_pending', JSON.stringify({ verifier: verifier, state: q2.get('state'), clientId: opts.clientId, redirect: redirect })); } catch (e) { throw new Error('Popup blocked'); }
+        location.href = BASE + '/authorize?' + q2; return new Promise(function () {});
+      }
       return new Promise(function (resolve, reject) {
         function onMsg(e) {
           var d = e.data; if (!d || d.type !== 'tasteid:callback') return;
@@ -54,7 +59,20 @@
     };
     el.appendChild(b);
   }
+  function resume() {
+    var m = location.hash.match(/tasteid_code=([^&]+)&tasteid_state=([^&]+)/), p;
+    try { p = JSON.parse(sessionStorage.getItem('tid_pending') || 'null'); } catch (e) {}
+    if (!m || !p || decodeURIComponent(m[2]) !== p.state) return;
+    sessionStorage.removeItem('tid_pending'); history.replaceState(null, '', location.pathname + location.search);
+    fetch(BASE + '/api/oauth/token', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ grant_type: 'authorization_code', code: decodeURIComponent(m[1]), client_id: p.clientId, redirect_uri: p.redirect, code_verifier: p.verifier }) })
+      .then(function (r) { return r.json(); }).then(function (j) {
+        if (j.error) return; var d = Object.assign({ api: api(j.access_token) }, { accessToken: j.access_token, scopes: j.scope.split(' '), expiresIn: j.expires_in });
+        function fire() { document.dispatchEvent(new CustomEvent('tasteid:signin', { detail: d })); var el = document.querySelector('[data-tasteid-button] .tid-btn'); if (el) { el.className = 'tid-btn tid-ok'; el.innerHTML = '<span class="tid-ico">✓</span><span>TasteID connected</span>'; } }
+        setTimeout(fire, 400);
+      });
+  }
   function scan() { document.querySelectorAll('[data-tasteid-button]').forEach(mount); }
+  resume();
   window.TasteID = { signIn: signIn, api: api, mount: mount, scan: scan, base: BASE };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', scan); else scan();
 })();

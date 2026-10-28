@@ -53,11 +53,18 @@ Without Supabase env vars the app uses a local JSON store (`.data/`) so it runs 
 |---|---|
 | `QLOO_API_KEY`, `QLOO_BASE_URL`, `QLOO_MOCK` | Qloo access (`QLOO_MOCK=true` or empty key → mock data, badge shown in header) |
 | `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` | Postgres (server-side only) |
-| `ANTHROPIC_API_KEY`, `LLM_MODEL` | agent playground + archetype (templated fallback if absent) |
+| `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL` | any OpenAI-compatible provider for the agent playground + archetype (templated fallback if `LLM_API_KEY` is empty). Works with Gemini's OpenAI-compatible endpoint or Groq (`https://api.groq.com/openai/v1`) by changing just these three vars |
 | `JWT_SECRET` | signs sessions + access tokens (64+ random chars) |
 | `NEXT_PUBLIC_APP_URL` | public origin |
 
-## Going live with the Qloo key
+## Going live
+Add `QLOO_API_KEY` and `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL` to `.env.local`, then run:
+```bash
+bash scripts/go-live.sh
+```
+It sets `QLOO_MOCK=false`, runs `verify-qloo.mjs`, pushes all env vars to Vercel production, redeploys, and runs `smoke.mjs` against production with Qloo assertions on. It exits loudly on any failure.
+
+### Manual steps (what the script automates)
 1. Set `QLOO_API_KEY=<key>` and `QLOO_MOCK=false` (locally in `.env.local` and on Vercel).
 2. Run `node scripts/verify-qloo.mjs` — prints a status table (writes no files). For any non-200 row, set the matching flag to `false` in `lib/qloo/capabilities.ts`.
 3. Redeploy (`vercel --prod`) and run `node scripts/smoke.mjs https://<your-app>`.

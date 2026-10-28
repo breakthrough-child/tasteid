@@ -9,7 +9,7 @@ const PK: Record<Table, string> = { passports: 'id', clients: 'id', grants: 'id'
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 export const usingSupabase = !!(url && key);
-const sb = usingSupabase ? createClient(url!, key!, { auth: { persistSession: false } }) : null;
+const sb = usingSupabase ? createClient(url!, key!, { auth: { persistSession: false }, global: { fetch: (u: any, o: any) => fetch(u, { ...o, cache: 'no-store' }) } }) : null;
 
 // Local fallback store (dev only) so the app runs before Supabase is configured.
 const FILE = process.env.VERCEL ? path.join(os.tmpdir(), 'tasteid-store.json') : path.join(process.cwd(), '.data', 'store.json');

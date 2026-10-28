@@ -11,6 +11,13 @@ const j = async (path, init = {}) => {
 };
 const s = await j('/api/search?q=Radiohead&type=artist');
 ok('search', s.status === 200 && s.body.results?.length > 0, `${s.body?.results?.length} results`);
+const QLOO = process.env.QLOO_ASSERT === '1';
+if (QLOO) {
+  const real = s.body.results?.every((e) => !String(e.id).startsWith('mock-'));
+  ok('Qloo assertion: search returns real (non-mock) entities', real);
+  const cat = await j('/api/demo/catalog?app=forkful&city=New%20York');
+  ok('Qloo assertion: Forkful NYC places non-empty', cat.body?.items?.length > 0, `${cat.body?.items?.length ?? 0} places`);
+} else console.log('SKIP  Qloo assertions (mock mode)');
 const seeds = (await Promise.all([['Radiohead', 'artist'], ['Inception', 'movie'], ['Nike', 'brand'], ['Dune', 'book']].map(async ([q, t]) => (await j(`/api/search?q=${q}&type=${t}`)).body.results[0]))).filter(Boolean);
 const c = await j('/api/passport/create', { method: 'POST', body: JSON.stringify({ seeds }) });
 ok('create passport', c.status === 200 && c.body.recoveryKey, c.body?.error || '');
@@ -31,6 +38,7 @@ const t = await j('/api/v1/taste', { headers: auth });
 ok('GET /taste scoped', t.status === 200 && t.body.domains?.film_tv && !t.body.domains?.music, Object.keys(t.body?.domains || {}).join(','));
 const r = await j('/api/v1/recommend', { method: 'POST', headers: auth, body: JSON.stringify({ domain: 'film_tv', take: 5 }) });
 ok('POST /recommend', r.status === 200 && r.body.items?.length > 0 && !!r.body.items[0].why);
+if (QLOO) ok('Qloo assertion: recommend returns affinity scores', r.body.items.some((i) => typeof i.affinity === 'number'));
 const out = await j('/api/v1/recommend', { method: 'POST', headers: auth, body: JSON.stringify({ domain: 'music' }) });
 ok('out-of-scope domain → 403', out.status === 403);
 const conns = await j('/api/connections');

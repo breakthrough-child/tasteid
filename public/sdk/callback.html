@@ -2,6 +2,15 @@
 <body style="font:15px system-ui;background:#0b0d17;color:#fff;display:grid;place-items:center;height:100vh;margin:0">Connecting your TasteID…
 <script>
 var p = new URLSearchParams(location.search);
-if (window.opener) { window.opener.postMessage({ type: 'tasteid:callback', code: p.get('code'), state: p.get('state'), error: p.get('error') }, '*'); }
-setTimeout(function () { window.close(); }, 150);
+if (window.opener) {
+  window.opener.postMessage({ type: 'tasteid:callback', code: p.get('code'), state: p.get('state'), error: p.get('error') }, '*');
+  setTimeout(function () { window.close(); }, 150);
+} else {
+  // Popup was blocked and the SDK used a full-page redirect: return to the host page (encoded in state).
+  try {
+    var b = (p.get('state') || '').split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    var ret = new URL(atob(b));
+    if (/^https?:$/.test(ret.protocol)) location.replace(ret.href + '#tasteid_code=' + encodeURIComponent(p.get('code') || '') + '&tasteid_state=' + encodeURIComponent(p.get('state') || ''));
+  } catch (e) { document.body.textContent = 'You can close this window.'; }
+}
 </script>

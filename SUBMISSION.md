@@ -8,7 +8,7 @@ TasteID is an anonymous, user-owned taste passport. In ~60 seconds you name thin
 Three fictional demo apps (Reelhouse, Forkful, Threadline) show a before/after of their own catalogs, and an agent playground compares a plain AI to one using TasteID through real tool calls (also exposed as a remote MCP server).
 
 ## How we built it
-Next.js 15 (App Router) + TypeScript + Tailwind on Vercel; Supabase Postgres for passports, grants, auth codes and a 24h Qloo cache; `jose` for JWTs; a dependency-free drop-in JS SDK; Anthropic tool-calling for the agent; a hand-written MCP (Streamable HTTP JSON-RPC) endpoint.
+Next.js 15 (App Router) + TypeScript + Tailwind on Vercel; Supabase Postgres for passports, grants, auth codes and a 24h Qloo cache; `jose` for JWTs; a dependency-free drop-in JS SDK; OpenAI-compatible tool-calling (Gemini/Groq/any provider) for the agent; a hand-written MCP (Streamable HTTP JSON-RPC) endpoint.
 
 ## Qloo-powered features
 - `/search` to resolve anything the user names to a taste-graph entity
