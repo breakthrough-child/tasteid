@@ -1,6 +1,6 @@
 export type Ent = {
   id: string; name: string; type: string;
-  affinity?: number; popularity?: number; image?: string; tags?: string[]; why?: string;
+  affinity?: number; popularity?: number; image?: string; tags?: string[]; why?: string; because?: string;
 };
 export type InsightOpts = {
   type: string;                 // entity type short name, e.g. "artist"

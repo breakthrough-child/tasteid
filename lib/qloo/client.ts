@@ -14,7 +14,7 @@ const COMMON = ['filter.type', 'take'];
 const ALLOW: Record<string, string[]> = {
   entity: [...COMMON, 'feature.explainability', 'signal.interests.entities', 'signal.demographics.age', 'signal.location.query',
     'filter.location.query', 'filter.results.entities', 'filter.exclude.entities', 'filter.popularity.min', 'filter.popularity.max'],
-  'urn:tag': [...COMMON, 'signal.interests.entities'],
+  'urn:tag': [...COMMON, 'signal.interests.entities', 'filter.tag.types'],
   'urn:demographics': ['filter.type', 'signal.interests.entities'],
   'urn:heatmap': ['filter.type', 'signal.interests.entities', 'filter.location.query'],
 };
@@ -53,24 +53,19 @@ async function call(path: string, params: Record<string, string | undefined>): P
 const SHORT = (t: string) => (t || '').replace('urn:entity:', '');
 function norm(e: any, fallbackType: string): Ent {
   const tags = Array.isArray(e.tags) ? e.tags.map((t: any) => (typeof t === 'string' ? t : t.name)).filter(Boolean).slice(0, 6) : undefined;
-  const type = SHORT(e.type || (Array.isArray(e.types) ? e.types[0] : '') || fallbackType) || fallbackType;
   const img = e.properties?.image?.url || e.image?.url || (typeof e.image === 'string' ? e.image : undefined);
-  const why = e.query?.explainability ? summarizeWhy(e.query.explainability) : undefined;
+  const contrib: { entity_id: string; score: number }[] = e.query?.explainability?.['signal.interests.entities'] || [];
+  const top = contrib.slice().sort((a, b) => b.score - a.score)[0];
   return {
-    id: e.entity_id || e.id, name: e.name, type,
-    affinity: typeof e.query?.affinity === 'number' ? e.query.affinity : undefined,
+    id: e.entity_id || e.id, name: e.name, type: fallbackType,
+    affinity: typeof e.query?.affinity === 'number' ? Math.round(e.query.affinity * 100) / 100 : undefined,
     popularity: typeof e.popularity === 'number' ? e.popularity : undefined,
-    image: img, tags, why,
+    image: img, tags, because: top?.entity_id,
   };
 }
-function summarizeWhy(x: any): string | undefined {
-  try {
-    const items = Array.isArray(x) ? x : Object.values(x).flat();
-    const names = items.map((i: any) => i?.name || i?.entity?.name || i?.tag?.name).filter(Boolean).slice(0, 2);
-    return names.length ? `Connects to ${names.join(' and ')} in your taste` : undefined;
-  } catch { return undefined; }
-}
-const urn = (t: string) => `urn:entity:${t}`;
+// Qloo spells the game type `videogame` (the guide says video_game; the live API 400s on that).
+const QTYPE: Record<string, string> = { video_game: 'videogame' };
+const urn = (t: string) => `urn:entity:${QTYPE[t] || t}`;
 
 export async function searchEntities(query: string, type: string, take = 5): Promise<Ent[]> {
   if (isMock()) return mockSearch(query, type).slice(0, take);
@@ -101,7 +96,7 @@ export async function topTags(signal: string[], take = 12): Promise<string[]> {
   if (isMock()) return mockTags(signal).slice(0, take);
   if (!CAPS.tags) return [];
   try {
-    const body = await call('/v2/insights', { 'filter.type': 'urn:tag', 'signal.interests.entities': signal.join(','), take: String(take) });
+    const body = await call('/v2/insights', { 'filter.type': 'urn:tag', 'signal.interests.entities': signal.join(','), take: String(take), 'filter.tag.types': 'urn:tag:genre:media,urn:tag:keyword:media' });
     return (body.results?.tags || body.results?.entities || []).map((t: any) => t.name).filter(Boolean).slice(0, take);
   } catch { return []; }
 }
@@ -111,7 +106,13 @@ export async function demographics(signal: string[]) {
   if (!CAPS.demographics) return undefined;
   try {
     const body = await call('/v2/insights', { 'filter.type': 'urn:demographics', 'signal.interests.entities': signal.join(',') });
-    const d = body.results?.demographics?.[0]?.query || body.results?.demographics?.[0];
-    return d ? { age: d.age, gender: d.gender } : undefined;
+    const rows = (body.results?.demographics || []).map((x: any) => x.query).filter(Boolean);
+    const avg = (k: 'age' | 'gender') => {
+      const acc: Record<string, number> = {};
+      rows.forEach((r: any) => Object.entries(r[k] || {}).forEach(([n, v]) => (acc[n] = (acc[n] || 0) + (v as number) / rows.length)));
+      return Object.fromEntries(Object.entries(acc).map(([n, v]) => [n, Math.round(v * 100) / 100]));
+    };
+    const d = rows.length ? { age: avg('age'), gender: avg('gender') } : undefined;
+    return d;
   } catch { return undefined; }
 }

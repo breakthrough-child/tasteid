@@ -1,13 +1,13 @@
-// Findings from `node scripts/verify-qloo.mjs`. Until a real key has been probed these are the documented defaults.
+// Verified with `node scripts/verify-qloo.mjs` against the live hackathon API. Game type is `videogame` on the wire (not video_game).
 // Flip a flag to false if the probe shows the endpoint failing; the client then skips it gracefully.
 export const CAPS = {
-  verified: false,
+  verified: true,
   searchTypes: ['artist', 'movie', 'tv_show', 'place', 'brand', 'book', 'podcast', 'video_game', 'destination'],
   explainability: true,
   resultsFilter: true,
   tags: true,
   demographics: true,
   heatmap: true,
-  trending: false,
-  compare: false,
+  trending: false, // needs signal + start/end dates; unused,
+  compare: true // 200 in probe; unused,
 };

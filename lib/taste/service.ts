@@ -39,9 +39,10 @@ export async function recommend(passportId: string, scopes: string[], input: Rec
   let items = await domainInsights(input.domain, signal, { take: input.take ?? (cands.length || 10), city: input.context?.city, candidates: cands as any, explain: true });
   items = items.map((e) => ({ ...e, name: names.get(e.id) && (e.name === e.id || !e.name) ? names.get(e.id)! : e.name }));
   const seedNames = p.seeds.map((s) => s.name);
+  const byId = new Map(p.seeds.map((x) => [x.id.toLowerCase(), x.name]));
   const withWhy = items.map((e, i) => ({
     id: e.id, name: e.name, type: e.type, affinity: e.affinity, image: e.image,
-    why: e.why || (e.tags?.length ? `Matches your taste for ${e.tags.slice(0, 2).join(' & ')}${seedNames[i % seedNames.length] ? `, like ${seedNames[i % seedNames.length]}` : ''}` : `Fits the taste you shared (${seedNames[0] ?? 'your picks'})`),
+    why: (e.because && byId.get(e.because.toLowerCase()) ? `Because you love ${byId.get(e.because.toLowerCase())}${e.tags?.length ? ` — ${e.tags.slice(0, 2).join(' & ')}` : ''}` : e.why) || (e.tags?.length ? `Matches your taste for ${e.tags.slice(0, 2).join(' & ')}${seedNames[i % seedNames.length] ? `, like ${seedNames[i % seedNames.length]}` : ''}` : `Fits the taste you shared (${seedNames[0] ?? 'your picks'})`),
   }));
   return { domain: input.domain, mode: cands.length ? 'rerank' : 'discover', items: withWhy };
 }
@@ -55,7 +56,7 @@ export async function explain(passportId: string, entityId: string, type?: strin
   if (!p) return null;
   const t = type || (entityId.startsWith('mock-') ? entityId.split('-')[1] : 'movie');
   const r = await insights({ type: t, signal: p.seeds.map((s) => s.id), candidates: [entityId], explain: true, take: 1 }).catch(() => []);
-  return r[0] ? { id: r[0].id, name: r[0].name, affinity: r[0].affinity, why: r[0].why || 'It overlaps with the themes in your seeds.' } : { id: entityId, why: 'No explanation available.' };
+  return r[0] ? { id: r[0].id, name: r[0].name, affinity: r[0].affinity, why: (r[0].because && p.seeds.find((x) => x.id.toLowerCase() === r[0].because!.toLowerCase()) ? `Because you love ${p.seeds.find((x) => x.id.toLowerCase() === r[0].because!.toLowerCase())!.name}` : r[0].why) || 'It overlaps with the themes in your seeds.' } : { id: entityId, why: 'No explanation available.' };
 }
 
 export { DEFAULT_CITY };

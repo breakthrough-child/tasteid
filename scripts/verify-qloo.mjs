@@ -14,22 +14,22 @@ async function probe(label, path, params) {
     return r.ok ? r : null;
   } catch (e) { rows.push([label, 'ERR', '-', e.message.slice(0, 28)]); }
 }
-const types = ['artist', 'movie', 'tv_show', 'place', 'brand', 'book', 'podcast', 'video_game', 'destination', 'person'];
+const types = ['artist', 'movie', 'tv_show', 'place', 'brand', 'book', 'podcast', 'videogame', 'destination', 'person'];
 const seed = {};
 for (const t of types) {
-  const q = { artist: 'Radiohead', movie: 'Inception', tv_show: 'Severance', place: 'Joe\'s Pizza', brand: 'Nike', book: 'Dune', podcast: 'Serial', video_game: 'Zelda', destination: 'Tokyo', person: 'Tom Hanks' }[t];
+  const q = { artist: 'Radiohead', movie: 'Inception', tv_show: 'Severance', place: 'Joe\'s Pizza', brand: 'Nike', book: 'Dune', podcast: 'Serial', videogame: 'Zelda', destination: 'Tokyo', person: 'Tom Hanks' }[t];
   const r = await probe(`search ${t}`, '/search', { query: q, types: `urn:entity:${t}` });
   if (r) { const j = await (await fetch(`${BASE}/search?${new URLSearchParams({ query: q, types: `urn:entity:${t}` })}`, { headers: { 'X-Api-Key': KEY } })).json(); seed[t] = (j.results?.[0] || j.results?.entities?.[0])?.entity_id; }
 }
 const sig = Object.values(seed).filter(Boolean).slice(0, 3).join(',');
 for (const t of types) await probe(`insights ${t}`, '/v2/insights', { 'filter.type': `urn:entity:${t}`, 'signal.interests.entities': sig, take: 5, ...(t === 'place' ? { 'filter.location.query': 'New York' } : {}) });
 await probe('insights explain', '/v2/insights', { 'filter.type': 'urn:entity:movie', 'signal.interests.entities': sig, 'feature.explainability': 'true', take: 3 });
-await probe('urn:tag', '/v2/insights', { 'filter.type': 'urn:tag', 'signal.interests.entities': sig, take: 5 });
+await probe('urn:tag', '/v2/insights', { 'filter.type': 'urn:tag', 'signal.interests.entities': sig, take: 5, 'filter.tag.types': 'urn:tag:genre:media,urn:tag:keyword:media' });
 await probe('urn:demographics', '/v2/insights', { 'filter.type': 'urn:demographics', 'signal.interests.entities': sig });
 await probe('urn:heatmap', '/v2/insights', { 'filter.type': 'urn:heatmap', 'signal.interests.entities': sig, 'filter.location.query': 'New York' });
-if (seed.movie) await probe('filter.results.entities', '/v2/insights', { 'filter.type': 'urn:entity:movie', 'signal.interests.entities': sig, 'filter.results.entities': seed.movie, take: 5 });
+if (seed.movie) await probe('filter.results.entities', '/v2/insights', { 'filter.type': 'urn:entity:movie', 'signal.interests.entities': seed.artist, 'filter.results.entities': seed.movie, take: 5 });
 await probe('/v2/tags', '/v2/tags', { 'filter.query': 'comedy' });
-await probe('/v2/trending', '/v2/trending', { 'filter.type': 'urn:entity:movie' });
+// /v2/trending needs signal + filter.start_date/end_date; unused by the app, not probed
 await probe('/v2/analysis/compare', '/v2/analysis/compare', { 'a.signal.interests.entities': sig, 'b.signal.interests.entities': sig, 'filter.type': 'urn:entity:movie' });
 console.log('endpoint'.padEnd(26), 'status'.padEnd(7), 'count'.padEnd(6), 'sample');
 for (const r of rows) console.log(String(r[0]).padEnd(26), String(r[1]).padEnd(7), String(r[2]).padEnd(6), r[3]);
