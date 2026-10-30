@@ -8,3 +8,4 @@ data/qloo-*
 .vercel
 next-env.d.ts
 tsconfig.tsbuildinfo
+.env*

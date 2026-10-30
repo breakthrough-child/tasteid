@@ -1,5 +1,7 @@
 # TasteID — Devpost submission text
 
+**Live demo:** https://tasteid.vercel.app · **Code:** https://github.com/breakthrough-child/tasteid
+
 ## Inspiration
 Every new app, streaming service and AI assistant greets you with the same generic cold-start screen, then slowly learns what you already know about yourself. We asked: why isn't taste portable? "Sign in with Google" solved identity. Nothing solves taste — and agents make it urgent, because an AI concierge is only as good as what it knows about you.
 
